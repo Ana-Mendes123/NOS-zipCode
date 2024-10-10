@@ -18,32 +18,50 @@ def main():
 		if os.path.getsize(f"csv/{file_name}") == 0:
 			print("File is empty")
 			return
-		df = pd.read_csv(f"csv/{file_name}")
+		line = check_exit_file()
+		df = pd.read_csv(f"csv/{file_name}", skiprows=[i for i in range(1, line-1)])
 		lines = df.shape[0] #shape = (nº de linhas, nº de colunas)
 		current_line_number = 2
-
-		for row in df.itertuples(index=False):
-			print(f"Current line: {current_line_number}")
-			if lines > 10:
-				zipcode = row[0]
-				time.sleep(2)
-				print(row) #para ele não pôr logo os dados da próxima linha
-				json_list = zipToLocation(zipcode)
-				if json_list != []:
-					fields = parseJson(json_list)
-					write_to_csv(fields, zipcode)
-					store_in_db(zipcode, fields)
-				lines -= 1
-				current_line_number += 1
-				print(f"There are {lines} lines left")
-				print("-------------------------------------------")
-			else:
-				print(f"There were {nulls} nulls and {completed} completed")
+		try:
+			for row in df.itertuples(index=False):
+				print(f"Current line: {current_line_number}")
+				if lines > 10:
+					zipcode = row[0]
+					time.sleep(2)
+					print(row) #para ele não pôr logo os dados da próxima linha
+					json_list = zipToLocation(zipcode)
+					if json_list != []:
+						fields = parseJson(json_list)
+						write_to_csv(fields, zipcode)
+						store_in_db(zipcode, fields)
+					lines -= 1
+					current_line_number += 1
+					print(f"There are {lines} lines left")
+					print("-------------------------------------------")
+				else:
+					print(f"There were {nulls} nulls and {completed} completed")
+					return
+		except KeyboardInterrupt:
+			with open("outputs/exit.txt", "w") as log_file:
+				log_file.write(f"{current_line_number}")
 				return
 	else:
 		print("File not found.")
 		return
 	print(f"There were {nulls} nulls and {completed} completed")
+	with open("outputs/exit.txt", "w") as log_file:
+		log_file.write("Terminated")
+
+def check_exit_file():
+	if os.path.exists("outputs/exit.txt"):
+		with open("outputs/exit.txt", "r") as log_file:
+			log_read = log_file.read()
+			if log_read != "Terminated":
+				line: int = int(log_read)
+				return line
+			else:
+				return -1
+	return -1
 
 def verify_csv_exists() -> [str,bool]:
 	file_name = input("Enter csv file name: ")
